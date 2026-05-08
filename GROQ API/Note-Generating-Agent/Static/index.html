@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NoteAgent · Lecture Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Galada&family=Hind+Siliguri:wght@400;600&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Dark technical shell */
+    --shell-bg:      #14110d;
+    --shell-surface: #1c1812;
+    --shell-border:  #2e2820;
+    --shell-text:    #e8dcc8;
+    --shell-muted:   #7a6e5f;
+    --accent:        #c8973a;
+    --accent-soft:   #d9a94a;
+    --accent-green:  #7db88a;
+    --danger:        #c0544a;
+    --live:          #4caf82;
+
+    /* Notebook paper */
+    --paper:         #f4ead5;
+    --paper-shadow:  rgba(20, 14, 4, 0.45);
+    --rule:          #d4c5a1;
+    --margin-red:    #c0392b;
+    --ink-body:      #2b2416;
+    --ink-fade:      #6b5d47;
+    --ink-blue:      #2c3e7a;     /* fountain-pen indigo for topics */
+    --ink-red:       #962d22;
+    --highlight:     #fff58a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--shell-bg);
+    color: var(--shell-text);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    overflow: hidden;
+  }
+
+  /* ─── Header / Controls ───────────────────────────────────────────────── */
+  header {
+    border-bottom: 1px solid var(--shell-border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--shell-surface);
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .logo .mark { font-size: 1.1rem; }
+  .logo .sub  { color: var(--shell-muted); font-size: 0.75rem; font-style: normal;
+                font-family: 'JetBrains Mono', monospace; letter-spacing: 0.15em;
+                text-transform: uppercase; margin-left: 4px; }
+
+  .api-row { display: flex; gap: 6px; flex: 1; min-width: 220px; max-width: 380px; }
+  .api-row input, .lang-select {
+    flex: 1;
+    background: var(--shell-bg);
+    border: 1px solid var(--shell-border);
+    border-radius: 5px;
+    padding: 7px 11px;
+    color: var(--shell-text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .api-row input:focus, .lang-select:focus { border-color: var(--accent); }
+  .api-row input::placeholder { color: var(--shell-muted); }
+
+  .lang-select {
+    flex: 0 0 110px;
+    cursor: pointer;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--shell-muted) 50%),
+                      linear-gradient(135deg, var(--shell-muted) 50%, transparent 50%);
+    background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 26px;
+  }
+
+  .controls { display: flex; gap: 8px; margin-left: auto; align-items: center; }
+
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .btn-start  { background: var(--accent); color: #14110d; }
+  .btn-start:hover  { background: var(--accent-soft); }
+  .btn-stop   { background: var(--danger); color: #fff; }
+  .btn-stop:hover   { background: #d4615a; }
+  .btn-ghost  { background: transparent; color: var(--shell-muted); border-color: var(--shell-border); }
+  .btn-ghost:hover  { color: var(--shell-text); border-color: var(--shell-muted); }
+  .btn-export { background: var(--accent-green); color: #14110d; }
+  .btn-export:hover { background: #8dc99a; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--shell-muted);
+    padding: 5px 11px;
+    border: 1px solid var(--shell-border);
+    border-radius: 20px;
+    background: var(--shell-bg);
+    transition: all 0.3s;
+  }
+  .status-pill.recording { color: var(--live); border-color: rgba(76,175,130,0.4); }
+  .status-pill.processing { color: var(--accent); border-color: rgba(200,151,58,0.4); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--shell-muted); }
+  .status-pill.recording .dot { background: var(--live); animation: pulse 1.2s infinite; }
+  .status-pill.processing .dot { background: var(--accent); animation: blink 0.6s infinite alternate; }
+
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(0.65);} }
+  @keyframes blink { from{opacity:1;} to{opacity:0.3;} }
+
+  /* ─── Main layout ─────────────────────────────────────────────────────── */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    height: calc(100vh - 60px);
+    overflow: auto;
+  }
+  @media (max-width: 880px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 1.4fr 1fr; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════ */
+  /* NOTEBOOK PAPER PANEL — the warm centerpiece                              */
+  /* ═══════════════════════════════════════════════════════════════════════ */
+  .notes-panel {
+    overflow-y: auto;
+    background: var(--paper);
+    /* Repeating ruled lines (32px line height) */
+    background-image:
+      /* Red margin line at 60px */
+      linear-gradient(to right, transparent 59px, rgba(192,57,43,0.35) 59px,
+                      rgba(192,57,43,0.35) 60px, transparent 60px),
+      /* Ruled lines */
+      repeating-linear-gradient(transparent 0 31px, rgba(139,108,62,0.22) 31px 32px),
+      /* Subtle paper texture noise via SVG */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.15 0 0 0 0 0.08 0 0 0 0.08 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    box-shadow: inset 8px 0 18px -10px rgba(0,0,0,0.18);
+    padding: 32px 32px 60px 80px;
+    position: relative;
+  }
+
+  /* Punched binder holes down the left edge */
+  .notes-panel::before {
+    content: '';
+    position: absolute;
+    left: 18px; top: 0; bottom: 0;
+    width: 14px;
+    background-image:
+      radial-gradient(circle at 7px 60px, rgba(0,0,0,0.18) 0 6px, transparent 7px),
+      radial-gradient(circle at 7px 220px, rgba(0,0,0,0.18) 0 6px, transparent 7px),
+      radial-gradient(circle at 7px 380px, rgba(0,0,0,0.18) 0 6px, transparent 7px),
+      radial-gradient(circle at 7px 540px, rgba(0,0,0,0.18) 0 6px, transparent 7px),
+      radial-gradient(circle at 7px 700px, rgba(0,0,0,0.18) 0 6px, transparent 7px);
+    pointer-events: none;
+  }
+
+  .notes-panel h2 {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--ink-fade);
+    letter-spacing: 0.04em;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .notes-panel h2 .pen { font-size: 1.1rem; }
+  .notes-panel h2::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--ink-fade), transparent);
+    opacity: 0.4;
+  }
+  .notes-panel h2 .date {
+    font-family: 'Caveat', cursive;
+    font-size: 1.15rem;
+    color: var(--ink-blue);
+    font-style: normal;
+  }
+
+  /* ─── Note card (handwritten paper sheet) ────────────────────────────── */
+  .note-card {
+    position: relative;
+    background: rgba(255, 252, 240, 0.55);
+    padding: 22px 26px 20px 26px;
+    margin: 0 0 38px 0;
+    border-radius: 2px;
+    box-shadow:
+      0 1px 2px rgba(60, 40, 10, 0.06),
+      0 6px 16px -8px rgba(60, 40, 10, 0.18);
+    animation: paperDrop 0.45s cubic-bezier(0.2, 0.7, 0.3, 1.1);
+    transform-origin: top center;
+  }
+
+  /* Tiny rotation per card for organic feel — alternated via :nth-child */
+  .note-card:nth-child(3n+1) { transform: rotate(-0.6deg); }
+  .note-card:nth-child(3n+2) { transform: rotate(0.5deg);  }
+  .note-card:nth-child(3n)   { transform: rotate(-0.3deg); }
+
+  /* Washi-tape piece at the top — alternating colors */
+  .note-card::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 30px;
+    width: 70px;
+    height: 22px;
+    background: rgba(255, 200, 200, 0.55);
+    transform: rotate(-3deg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    /* faint stripes on tape */
+    background-image:
+      repeating-linear-gradient(45deg,
+        transparent 0 4px, rgba(255,255,255,0.3) 4px 6px);
+  }
+  .note-card:nth-child(3n+2)::before {
+    background-color: rgba(180, 220, 200, 0.55);
+    left: auto; right: 40px;
+    transform: rotate(4deg);
+  }
+  .note-card:nth-child(3n)::before {
+    background-color: rgba(255, 235, 180, 0.6);
+    left: 50%; transform: translateX(-50%) rotate(-1.5deg);
+  }
+
+  @keyframes paperDrop {
+    0%   { opacity: 0; transform: translateY(-12px) rotate(-2deg); }
+    100% { opacity: 1; }
+  }
+
+  .note-topic {
+    font-family: 'Caveat', 'Galada', cursive;
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: var(--ink-blue);
+    line-height: 1.1;
+    margin-bottom: 4px;
+    text-shadow: 0 0.5px 0 rgba(44, 62, 122, 0.2);
+  }
+  .note-topic .num {
+    color: var(--ink-red);
+    font-weight: 700;
+    margin-right: 6px;
+  }
+  /* Bangla topic gets the Galada cursive feel */
+  .note-card[data-lang="bn"] .note-topic {
+    font-family: 'Galada', 'Hind Siliguri', cursive;
+    font-size: 1.6rem;
+  }
+
+  .note-summary {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    color: var(--ink-fade);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    margin: 6px 0 14px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(139, 108, 62, 0.35);
+  }
+  .note-card[data-lang="bn"] .note-summary {
+    font-family: 'Hind Siliguri', sans-serif;
+    font-style: normal;
+    font-size: 1rem;
+  }
+
+  .note-bullets { list-style: none; padding-left: 4px; }
+  .note-bullets li {
+    font-family: 'Caveat', 'Galada', cursive;
+    font-size: 1.32rem;
+    line-height: 1.45;
+    color: var(--ink-body);
+    padding: 2px 0 2px 26px;
+    position: relative;
+  }
+  .note-card[data-lang="bn"] .note-bullets li {
+    font-family: 'Galada', 'Hind Siliguri', cursive;
+    font-size: 1.18rem;
+    line-height: 1.7;
+  }
+  .note-bullets li::before {
+    content: '→';
+    position: absolute;
+    left: 4px;
+    top: 0px;
+    color: var(--ink-red);
+    font-weight: 700;
+    font-family: 'Caveat', cursive;
+    font-size: 1.4rem;
+  }
+  .note-bullets li:nth-child(2n)::before { content: '◦'; font-size: 1.6rem; top: -4px; }
+  .note-bullets li:nth-child(3n)::before { content: '✦'; font-size: 1.1rem; top: 3px; }
+
+  .note-keywords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+  }
+  .note-keywords .kw {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-size: 0.88rem;
+    color: #3a2f00;
+    /* Highlighter-marker effect */
+    background:
+      linear-gradient(180deg, transparent 30%, var(--highlight) 30% 90%, transparent 90%);
+    padding: 1px 7px 2px 7px;
+    transform: rotate(-0.5deg);
+  }
+  .note-keywords .kw:nth-child(2n) {
+    background: linear-gradient(180deg, transparent 30%, #b8e6c4 30% 90%, transparent 90%);
+    transform: rotate(0.7deg);
+  }
+  .note-keywords .kw:nth-child(3n) {
+    background: linear-gradient(180deg, transparent 30%, #ffc6b8 30% 90%, transparent 90%);
+    transform: rotate(-1deg);
+  }
+
+  /* Empty state on paper */
+  .empty-state {
+    text-align: center;
+    padding: 60px 30px;
+    color: var(--ink-fade);
+    font-family: 'Caveat', cursive;
+  }
+  .empty-state .icon { font-size: 3.5rem; margin-bottom: 12px; opacity: 0.55; }
+  .empty-state p {
+    font-size: 1.35rem;
+    line-height: 1.5;
+    color: var(--ink-fade);
+  }
+  .empty-state strong { color: var(--ink-blue); }
+  .empty-state .hint {
+    margin-top: 18px;
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-size: 0.9rem;
+    color: var(--ink-fade);
+    opacity: 0.75;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════ */
+  /* TRANSCRIPT PANEL — terminal-styled, supports Bangla                     */
+  /* ═══════════════════════════════════════════════════════════════════════ */
+  .transcript-panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--shell-surface);
+    border-left: 1px solid var(--shell-border);
+  }
+  .transcript-panel h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--shell-muted);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 14px 16px 11px;
+    border-bottom: 1px solid var(--shell-border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #transcript-box {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    font-family: 'JetBrains Mono', 'Hind Siliguri', monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: #998a72;
+  }
+  .transcript-chunk {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: rgba(232, 220, 200, 0.04);
+    border-radius: 4px;
+    border-left: 2px solid var(--shell-border);
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .transcript-chunk .meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-size: 0.65rem;
+  }
+  .transcript-chunk .time { color: var(--accent); opacity: 0.7; }
+  .transcript-chunk .lang-badge {
+    background: rgba(125, 184, 138, 0.15);
+    color: var(--accent-green);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .transcript-chunk .lang-badge.bn {
+    background: rgba(200, 151, 58, 0.15);
+    color: var(--accent);
+  }
+  .transcript-chunk .text {
+    color: #b8a890;
+    /* Bangla characters automatically use Hind Siliguri via fallback */
+  }
+  .placeholder {
+    color: var(--shell-muted);
+    font-style: italic;
+    padding: 8px 0;
+    font-size: 0.78rem;
+  }
+
+  /* ─── Scrollbars ──────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .notes-panel::-webkit-scrollbar-thumb { background: rgba(139, 108, 62, 0.3); border-radius: 3px; }
+  .transcript-panel ::-webkit-scrollbar-thumb { background: var(--shell-border); border-radius: 3px; }
+
+  /* ─── Toast ───────────────────────────────────────────────────────────── */
+  .toast {
+    position: fixed;
+    bottom: 22px;
+    right: 22px;
+    background: var(--danger);
+    color: #fff;
+    padding: 11px 16px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    max-width: 360px;
+    z-index: 999;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    animation: slideIn 0.3s ease;
+  }
+  .toast.info { background: var(--ink-blue); }
+
+  /* ─── First-time capture-help modal ──────────────────────────────────── */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--paper);
+    color: var(--ink-body);
+    padding: 28px 32px;
+    border-radius: 4px;
+    max-width: 480px;
+    font-family: 'Crimson Pro', serif;
+    line-height: 1.6;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    transform: rotate(-0.8deg);
+  }
+  .modal h3 {
+    font-family: 'Caveat', cursive;
+    font-size: 1.8rem;
+    color: var(--ink-blue);
+    margin-bottom: 8px;
+  }
+  .modal p { margin-bottom: 12px; font-size: 0.95rem; }
+  .modal ol { padding-left: 22px; margin-bottom: 16px; }
+  .modal li { margin-bottom: 6px; font-size: 0.92rem; }
+  .modal code {
+    background: rgba(192,57,43,0.1);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--ink-red);
+  }
+  .modal button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    padding: 9px 18px;
+    background: var(--ink-blue);
+    color: var(--paper);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="mark">📓</span>
+    <span>NoteAgent</span>
+    <span class="sub">v2 · Browser Capture</span>
+  </div>
+
+  <div class="api-row">
+    <input type="password" id="api-key" placeholder="gsk_… (Groq key — free at console.groq.com)" autocomplete="off" />
+  </div>
+
+  <select class="lang-select" id="lang-select" title="Spoken language">
+    <option value="auto">🌐 Auto</option>
+    <option value="en">🇬🇧 English</option>
+    <option value="bn">🇧🇩 বাংলা</option>
+  </select>
+
+  <div class="controls">
+    <div class="status-pill" id="status-pill">
+      <div class="dot"></div>
+      <span id="status-text">Idle</span>
+    </div>
+    <button class="btn btn-start" id="btn-start" onclick="startRecording()">▶ Start</button>
+    <button class="btn btn-stop"  id="btn-stop"  onclick="stopRecording()" disabled>■ Stop</button>
+    <button class="btn btn-ghost" onclick="clearNotes()">✕ Clear</button>
+    <button class="btn btn-export" onclick="exportNotes('md')">↓ MD</button>
+    <button class="btn btn-export" onclick="exportNotes('html')" title="Printable handwritten page">↓ HTML</button>
+    <button class="btn btn-export" onclick="exportPDF()" title="Save handwritten notes as PDF">↓ PDF</button>
+  </div>
+</header>
+
+<main>
+  <section class="notes-panel" id="notes-panel">
+    <h2>
+      <span class="pen">✒</span>
+      <span>Lecture Notebook</span>
+      <span class="date" id="today"></span>
+    </h2>
+    <div id="notes-container">
+      <div class="empty-state">
+        <div class="icon">📖</div>
+        <p>Press <strong>▶ Start</strong>, choose a browser tab,<br>and check <strong>“Share tab audio.”</strong></p>
+        <div class="hint">Notes will appear here, written by hand · বাংলা ও English</div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="transcript-panel">
+    <h2>
+      <span>🎙</span>
+      <span>Live Transcript</span>
+    </h2>
+    <div id="transcript-box">
+      <div class="placeholder">Transcript stream will appear here…</div>
+    </div>
+  </aside>
+</main>
+
+<!-- First-run capture-help modal -->
+<div class="modal-bg" id="help-modal">
+  <div class="modal">
+    <h3>How to capture muted videos 🤫</h3>
+    <p>Your browser will pop up a sharing dialog. Two things matter:</p>
+    <ol>
+      <li>Choose <strong>Chrome Tab</strong> (not Window or Screen) and pick the tab playing your video.</li>
+      <li><strong>Tick the “Also share tab audio” checkbox</strong> at the bottom of the dialog.</li>
+    </ol>
+    <p>Audio is captured at the source, so you can <strong>mute your speakers</strong> and the agent still hears everything. The video can play silently for you while NoteAgent listens. 🪄</p>
+    <p style="font-size:0.85rem;color:var(--ink-fade);">Works in Chrome, Edge, Opera. Firefox/Safari have limited tab-audio support.</p>
+    <button onclick="closeHelp()">Got it — let's go</button>
+  </div>
+</div>
+
+<script>
+  // ═══════════════════════════════════════════════════════════════════════
+  //  NoteAgent client — browser tab-audio capture + SSE
+  // ═══════════════════════════════════════════════════════════════════════
+
+  const CHUNK_MS = 30_000;  // process every 30 seconds
+
+  let captureStream = null;
+  let recorder      = null;
+  let recordedBlobs = [];
+  let chunkTimer    = null;
+  let capturing     = false;
+
+  // Display today's date in handwritten style
+  document.getElementById('today').textContent =
+    new Date().toLocaleDateString(undefined, {month: 'long', day: 'numeric', year: 'numeric'});
+
+  // ───── SSE: receive notes/transcripts/status from server ──────────────
+  function connectSSE() {
+    const evt = new EventSource('/events');
+
+    evt.addEventListener('init', e => {
+      const d = JSON.parse(e.data);
+      d.notes?.forEach(appendNote);
+      d.transcript_chunks?.forEach(appendTranscript);
+      updateStatus(d.status, '');
+    });
+    evt.addEventListener('note',       e => appendNote(JSON.parse(e.data)));
+    evt.addEventListener('transcript', e => appendTranscript(JSON.parse(e.data)));
+    evt.addEventListener('status',     e => { const d = JSON.parse(e.data); updateStatus(d.status, d.message); });
+    evt.addEventListener('error',      e => { try { showToast(JSON.parse(e.data).message); } catch {} });
+    evt.addEventListener('cleared', () => {
+      document.getElementById('notes-container').innerHTML = `
+        <div class="empty-state">
+          <div class="icon">📖</div>
+          <p>Cleared. Press <strong>▶ Start</strong> when ready.</p>
+        </div>`;
+      document.getElementById('transcript-box').innerHTML =
+        '<div class="placeholder">Transcript stream will appear here…</div>';
+    });
+  }
+
+  // ───── Render: notes ──────────────────────────────────────────────────
+  function appendNote(note) {
+    const c = document.getElementById('notes-container');
+    c.querySelector('.empty-state')?.remove();
+
+    const lang = note.lang || 'en';
+    const num = c.querySelectorAll('.note-card').length + 1;
+    const bullets = (note.bullets || []).map(b => `<li>${escape(b)}</li>`).join('');
+    const kws = (note.keywords || []).map(k => `<span class="kw">${escape(k)}</span>`).join('');
+
+    const card = document.createElement('article');
+    card.className = 'note-card';
+    card.dataset.lang = lang;
+    card.innerHTML = `
+      <h3 class="note-topic"><span class="num">${num}.</span>${escape(note.topic || 'Untitled')}</h3>
+      ${note.summary ? `<p class="note-summary">${escape(note.summary)}</p>` : ''}
+      <ul class="note-bullets">${bullets}</ul>
+      ${kws ? `<div class="note-keywords">${kws}</div>` : ''}
+    `;
+    c.appendChild(card);
+    c.parentElement.scrollTop = c.parentElement.scrollHeight;
+  }
+
+  // ───── Render: transcript ─────────────────────────────────────────────
+  function appendTranscript(chunk) {
+    const box = document.getElementById('transcript-box');
+    box.querySelector('.placeholder')?.remove();
+
+    const time = new Date((chunk.ts || Date.now()/1000) * 1000).toLocaleTimeString();
+    const lang = (chunk.lang || '').toLowerCase();
+    const langLabel = lang === 'bn' ? 'BN' : (lang === 'en' ? 'EN' : (lang.slice(0,2).toUpperCase() || '··'));
+
+    const div = document.createElement('div');
+    div.className = 'transcript-chunk';
+    div.innerHTML = `
+      <div class="meta">
+        <span class="time">${time}</span>
+        <span class="lang-badge ${lang}">${langLabel}</span>
+      </div>
+      <div class="text">${escape(chunk.text)}</div>`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // ───── Status pill / button states ────────────────────────────────────
+  function updateStatus(status, message) {
+    const pill = document.getElementById('status-pill');
+    const txt  = document.getElementById('status-text');
+    pill.className = 'status-pill ' + (status || 'idle');
+    const labels = { idle: '⏹ Idle', recording: '🎙 Listening', processing: '⚙ Processing' };
+    txt.textContent = message || labels[status] || status;
+
+    document.getElementById('btn-start').disabled = capturing || status !== 'idle';
+    document.getElementById('btn-stop').disabled  = !capturing && status === 'idle';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Browser tab-audio capture — works for muted-on-speakers playback
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /** Defensive POST helper. Always returns an object with .ok and .message,
+   *  giving a clear diagnostic instead of a generic "refused" toast. */
+  async function postJSON(url, body) {
+    try {
+      const opts = { method: 'POST' };
+      if (body !== undefined) {
+        opts.headers = { 'Content-Type': 'application/json' };
+        opts.body = JSON.stringify(body);
+      }
+      const r = await fetch(url, opts);
+      const text = await r.text();
+      let data = null;
+      if (text) {
+        try { data = JSON.parse(text); } catch {}
+      }
+
+      if (!r.ok) {
+        // Server replied but with an error code → surface it clearly
+        return {
+          ok: false,
+          message: (data && data.message)
+            || `Server error ${r.status} ${r.statusText || ''}`.trim()
+        };
+      }
+      if (!data) {
+        return { ok: false, message: 'Empty response from server (is Flask running?)' };
+      }
+      return data;
+    } catch (e) {
+      // fetch() rejected — server unreachable, CORS, network down, etc.
+      return {
+        ok: false,
+        message: 'Cannot reach server at ' + location.origin +
+                 ' — is the Python app running? (' + (e.message || e.name) + ')'
+      };
+    }
+  }
+
+  async function startRecording() {
+    const key  = document.getElementById('api-key').value.trim();
+    const lang = document.getElementById('lang-select').value;
+
+    if (!key) { showToast('Paste your Groq API key first'); return; }
+
+    // First-run help modal
+    if (!localStorage.getItem('noteagent-seen-help')) {
+      document.getElementById('help-modal').classList.add('show');
+      localStorage.setItem('noteagent-seen-help', '1');
+      window._pendingStart = () => beginCapture(key, lang);
+      return;
+    }
+    beginCapture(key, lang);
+  }
+
+  function closeHelp() {
+    document.getElementById('help-modal').classList.remove('show');
+    if (window._pendingStart) { window._pendingStart(); window._pendingStart = null; }
+  }
+
+  async function beginCapture(key, lang) {
+    try {
+      // Ask browser to share a tab WITH AUDIO. The user must tick
+      // "Share tab audio" in the dialog.
+      captureStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'browser' },  // hint the picker toward tabs
+        audio: {
+          // suppressLocalAudioPlayback: true keeps the captured audio from
+          // also playing through the user's speakers. Chromium-only, ignored
+          // elsewhere — safe to include.
+          suppressLocalAudioPlayback: false,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+        preferCurrentTab: false,
+      });
+
+      const audioTracks = captureStream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        captureStream.getTracks().forEach(t => t.stop());
+        captureStream = null;
+        showToast('No audio captured. Re-try and CHECK "Share tab audio".');
+        return;
+      }
+      // We don't need the video tracks — stop them to save resources
+      captureStream.getVideoTracks().forEach(t => t.stop());
+
+      // If user clicks "Stop sharing" in the browser bar, end gracefully
+      audioTracks[0].addEventListener('ended', () => {
+        if (capturing) {
+          showToast('Sharing ended by browser. Stopping…', 'info');
+          stopRecording();
+        }
+      });
+
+      // Tell the server we're starting
+      let data = await postJSON('/start', { api_key: key, language: lang });
+
+      // Auto-recover: if the server still thinks a previous session is live
+      // (e.g. user refreshed the page mid-recording), force-stop and retry.
+      if (!data.ok && /already recording/i.test(data.message || '')) {
+        await postJSON('/stop');
+        data = await postJSON('/start', { api_key: key, language: lang });
+      }
+
+      if (!data.ok) {
+        showToast(data.message || 'Server refused start');
+        cleanupCapture();
+        return;
+      }
+
+      capturing = true;
+      updateStatus('recording', '🎙 Listening…');
+      startNewRecorder();      // initial chunk
+      scheduleNextChunk();     // restart every 30s
+
+    } catch (err) {
+      console.error(err);
+      if (err.name === 'NotAllowedError') {
+        showToast('Permission denied. Click ▶ Start and allow tab sharing.');
+      } else if (err.name === 'NotFoundError') {
+        showToast('No tab selected. Click ▶ Start and pick a tab.');
+      } else {
+        showToast('Capture failed: ' + (err.message || err.name || 'unknown error'));
+      }
+      cleanupCapture();
+    }
+  }
+
+  function startNewRecorder() {
+    if (!captureStream) return;
+    recordedBlobs = [];
+
+    // Pick a supported mime — prefer Opus in WebM (Groq decodes it directly)
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/mp4',
+    ];
+    const mime = candidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+    const audioOnly = new MediaStream(captureStream.getAudioTracks());
+    recorder = new MediaRecorder(audioOnly, mime ? { mimeType: mime, audioBitsPerSecond: 96_000 } : undefined);
+
+    recorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) recordedBlobs.push(e.data);
+    };
+
+    recorder.onstop = async () => {
+      if (recordedBlobs.length > 0) {
+        const blob = new Blob(recordedBlobs, { type: mime || 'audio/webm' });
+        // Avoid uploading near-empty chunks (< ~3KB == almost certainly silence)
+        if (blob.size > 3000) uploadChunk(blob, mime || 'audio/webm');
+      }
+      // Chain: start the next chunk if still capturing
+      if (capturing) startNewRecorder();
+    };
+
+    recorder.start();
+  }
+
+  function scheduleNextChunk() {
+    chunkTimer = setInterval(() => {
+      if (recorder && recorder.state === 'recording') {
+        recorder.stop();   // triggers ondataavailable → onstop → startNewRecorder()
+      }
+    }, CHUNK_MS);
+  }
+
+  async function uploadChunk(blob, mime) {
+    try {
+      const fd = new FormData();
+      const ext = mime.includes('ogg') ? 'ogg' : (mime.includes('mp4') ? 'm4a' : 'webm');
+      fd.append('audio', blob, `chunk.${ext}`);
+      const r = await fetch('/upload-audio', { method: 'POST', body: fd });
+      if (!r.ok) {
+        const text = await r.text().catch(() => '');
+        let msg = '';
+        try { msg = (JSON.parse(text || '{}')).message || ''; } catch {}
+        console.warn('Upload rejected:', msg || r.status);
+      }
+    } catch (e) {
+      console.warn('Upload failed:', e);
+    }
+  }
+
+  async function stopRecording() {
+    capturing = false;
+    if (chunkTimer) { clearInterval(chunkTimer); chunkTimer = null; }
+    if (recorder && recorder.state === 'recording') {
+      recorder.stop();    // flushes the final chunk
+    }
+    cleanupCapture();
+    await postJSON('/stop');
+    updateStatus('idle', '⏹ Stopped');
+  }
+
+  function cleanupCapture() {
+    if (captureStream) {
+      captureStream.getTracks().forEach(t => t.stop());
+      captureStream = null;
+    }
+    recorder = null;
+  }
+
+  async function clearNotes() {
+    await postJSON('/clear');
+  }
+
+  function exportNotes(fmt) {
+    window.location.href = '/export?format=' + fmt;
+  }
+
+  function exportPDF() {
+    // Check there are notes to export
+    if (document.querySelectorAll('.note-card').length === 0) {
+      showToast('No notes to export yet — start a session first');
+      return;
+    }
+    // Open the printable handwritten HTML page with autoprint=1.
+    // The server appends an auto-print script, which opens the browser's
+    // native print dialog. User picks "Save as PDF" → done.
+    const w = window.open('/export?format=html&autoprint=1', '_blank');
+    if (!w) {
+      showToast('Popup blocked. Allow popups for localhost, then retry.');
+    }
+  }
+
+  // ───── Helpers ────────────────────────────────────────────────────────
+  function escape(s) {
+    return String(s ?? '')
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+      .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+  }
+  function showToast(msg, kind = 'error') {
+    const t = document.createElement('div');
+    t.className = 'toast' + (kind === 'info' ? ' info' : '');
+    t.textContent = (kind === 'info' ? 'ℹ ' : '⚠ ') + msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 5500);
+  }
+
+  // Persist the API key locally so the user doesn't re-paste each time
+  const keyInput = document.getElementById('api-key');
+  keyInput.value = localStorage.getItem('noteagent-key') || '';
+  keyInput.addEventListener('change', () => localStorage.setItem('noteagent-key', keyInput.value.trim()));
+
+  const langSelect = document.getElementById('lang-select');
+  langSelect.value = localStorage.getItem('noteagent-lang') || 'auto';
+  langSelect.addEventListener('change', () => localStorage.setItem('noteagent-lang', langSelect.value));
+
+  connectSSE();
+</script>
+</body>
+</html>
