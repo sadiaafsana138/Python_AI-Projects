@@ -162,8 +162,3 @@ Use PrepMate as your daily practice partner alongside official materials:
 - **No persistent storage** — conversation history resets on page refresh. This is intentional for privacy.
 - **Single user** — designed for one person's personal study, not multi-user deployment.
 
----
-
-## License
-
-MIT — free to use, modify, and share.
