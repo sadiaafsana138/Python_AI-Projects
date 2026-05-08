@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrepMate AI — IELTS & GRE Coach</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --surface2: #1e2530;
+            --border: #2a3441;
+            --gold: #d4a853;
+            --gold-dim: #a07830;
+            --gold-glow: rgba(212, 168, 83, 0.15);
+            --text: #e8eaf0;
+            --text-dim: #8b95a3;
+            --ielts: #3b82f6;
+            --ielts-glow: rgba(59, 130, 246, 0.18);
+            --gre: #8b5cf6;
+            --gre-glow: rgba(139, 92, 246, 0.18);
+            --green: #34d399;
+            --red: #f87171;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+        /* SETUP */
+        #setup-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; overflow-y: auto; }
+        .setup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px 36px; width: 100%; max-width: 500px; position: relative; box-shadow: 0 32px 80px rgba(0,0,0,.5); }
+        .setup-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--ielts), var(--gold), var(--gre)); border-radius: 20px 20px 0 0; }
+        .logo-text { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; color: var(--gold); }
+        .logo-sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; letter-spacing: 2px; text-transform: uppercase; }
+        .setup-section { margin-top: 26px; }
+        .setup-label { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+        .api-wrap { position: relative; }
+        .api-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 13px 44px 13px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border-color .2s; }
+        .api-input:focus { border-color: var(--gold); }
+        .api-input::placeholder { color: var(--text-dim); }
+        .eye-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 15px; }
+        .hint { font-size: 11px; color: var(--text-dim); margin-top: 8px; line-height: 1.5; }
+        .hint a { color: var(--gold-dim); text-decoration: none; }
+        .hint a:hover { text-decoration: underline; }
+
+        .exam-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .exam-btn { background: var(--bg); border: 2px solid var(--border); border-radius: 12px; padding: 16px 12px; cursor: pointer; transition: all .2s; text-align: center; }
+        .exam-btn:hover { border-color: var(--text-dim); }
+        .exam-btn.sel-ielts { border-color: var(--ielts); background: var(--ielts-glow); }
+        .exam-btn.sel-gre { border-color: var(--gre); background: var(--gre-glow); }
+        .exam-icon { font-size: 26px; margin-bottom: 6px; }
+        .exam-name { font-size: 15px; font-weight: 600; color: var(--text); }
+        .exam-desc { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+        .exam-secs { font-size: 10px; color: var(--text-dim); margin-top: 6px; line-height: 1.6; }
+
+        #section-picker { margin-top: 24px; display: none; }
+        .section-grid { display: grid; gap: 8px; }
+        .section-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 12px; font-family: 'DM Sans', sans-serif; text-align: left; width: 100%; }
+        .section-btn:hover { border-color: var(--gold-dim); }
+        .section-btn.active { border-color: var(--gold); background: var(--gold-glow); }
+        .sec-icon { font-size: 20px; flex-shrink: 0; }
+        .sec-name { font-size: 13px; font-weight: 600; color: var(--text); }
+        .sec-detail { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+        .start-btn { width: 100%; margin-top: 24px; background: linear-gradient(135deg, var(--gold), var(--gold-dim)); border: none; border-radius: 12px; padding: 15px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; color: #0d1117; cursor: pointer; transition: all .2s; }
+        .start-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(212,168,83,.3); }
+        .start-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+        /* APP */
+        #app-screen { display: none; flex-direction: column; height: 100vh; }
+        .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-logo { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--gold); font-weight: 700; }
+        .mode-badge { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; }
+        .badge-ielts { background: var(--ielts-glow); color: var(--ielts); border: 1px solid rgba(59,130,246,.3); }
+        .badge-gre { background: var(--gre-glow); color: var(--gre); border: 1px solid rgba(139,92,246,.3); }
+        .section-badge { font-size: 12px; color: var(--text-dim); cursor: pointer; }
+        .header-right { display: flex; gap: 8px; }
+        .icon-btn { background: none; border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dim); font-size: 15px; transition: all .2s; }
+        .icon-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+        .subtab-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; flex-shrink: 0; overflow-x: auto; }
+        .subtab-bar::-webkit-scrollbar { display: none; }
+        .subtab { padding: 12px 16px; font-size: 12px; font-weight: 500; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; white-space: nowrap; background: none; border-left: none; border-right: none; border-top: none; font-family: 'DM Sans', sans-serif; }
+        .subtab:hover { color: var(--text); }
+        .subtab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 230px; background: var(--surface); border-right: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; padding: 14px 10px; gap: 3px; overflow-y: auto; }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .sb-title { font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); padding: 10px 10px 4px; }
+        .sb-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 12px; color: var(--text-dim); font-weight: 500; transition: all .15s; border: 1px solid transparent; }
+        .sb-item:hover { background: var(--surface2); color: var(--text); }
+        .sb-item.active { background: var(--gold-glow); color: var(--gold); border-color: rgba(212,168,83,.2); }
+        .sb-icon { font-size: 14px; flex-shrink: 0; }
+
+        .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        #messages::-webkit-scrollbar { width: 5px; }
+        #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .welcome-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; max-width: 540px; margin: 0 auto; animation: fadeIn .35s ease-out; }
+        .wc-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+        .wc-emoji { font-size: 34px; }
+        .wc-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text); }
+        .wc-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+        .wc-desc { font-size: 13px; color: var(--text-dim); line-height: 1.65; margin-bottom: 16px; }
+        .qp-label { font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+        .qp-list { display: flex; flex-direction: column; gap: 6px; }
+        .qp-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; text-align: left; font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text-dim); cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 8px; }
+        .qp-btn:hover { border-color: var(--gold-dim); color: var(--text); background: var(--gold-glow); }
+
+        .message { display: flex; gap: 10px; max-width: 800px; animation: fadeIn .25s ease-out; }
+        .message.user { flex-direction: row-reverse; margin-left: auto; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .avatar-ai { background: var(--gold-glow); border: 1px solid rgba(212,168,83,.3); }
+        .avatar-user { background: var(--ielts-glow); border: 1px solid rgba(59,130,246,.3); }
+        .bubble { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 13px 16px; font-size: 13.5px; line-height: 1.7; max-width: 620px; }
+        .message.user .bubble { background: var(--surface2); }
+        .bubble strong { color: var(--gold); font-weight: 600; }
+        .bubble em { color: var(--text-dim); }
+        .bubble code { background: var(--surface2); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        .bubble h3 { color: var(--gold); font-size: 14px; font-weight: 600; margin: 12px 0 6px; }
+        .bubble h4 { color: var(--text); font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
+        .bubble ul, .bubble ol { margin: 8px 0 8px 20px; }
+        .bubble li { margin-bottom: 3px; }
+        .bubble p { margin-bottom: 8px; }
+        .bubble p:last-child { margin-bottom: 0; }
+        .chip { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .chip-g { background: rgba(52,211,153,.15); color: var(--green); border: 1px solid rgba(52,211,153,.3); }
+        .chip-a { background: rgba(212,168,83,.15); color: var(--gold); border: 1px solid rgba(212,168,83,.3); }
+        .chip-b { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+
+        .typing-bub { display: flex; align-items: center; gap: 4px; padding: 14px 16px; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); animation: bounce 1.2s infinite; }
+        .dot:nth-child(2) { animation-delay: .2s; }
+        .dot:nth-child(3) { animation-delay: .4s; }
+        @keyframes bounce { 0%,80%,100%{transform:translateY(0);opacity:.4} 40%{transform:translateY(-5px);opacity:1} }
+
+        .input-area { background: var(--surface); border-top: 1px solid var(--border); padding: 14px 20px; flex-shrink: 0; }
+        .status-bar { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-dim); margin-bottom: 9px; min-height: 18px; }
+        .sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+        .sdot.listening { background: var(--ielts); animation: pdot 1.5s infinite; }
+        .sdot.speaking { background: var(--gre); animation: pdot 1.5s infinite; }
+        .sdot.thinking { background: var(--gold); animation: pdot 1.5s infinite; }
+        @keyframes pdot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+        .input-row { display: flex; gap: 8px; align-items: flex-end; }
+        #text-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13.5px; outline: none; resize: none; max-height: 120px; min-height: 48px; transition: border-color .2s; line-height: 1.5; }
+        #text-input:focus { border-color: var(--gold); }
+        #text-input::placeholder { color: var(--text-dim); }
+        .mic-btn { width: 48px; height: 48px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-dim); transition: all .2s; flex-shrink: 0; }
+        .mic-btn:hover { border-color: var(--ielts); color: var(--ielts); }
+        .mic-btn.active { background: var(--ielts-glow); border-color: var(--ielts); color: var(--ielts); animation: pmic 1.5s infinite; }
+        @keyframes pmic { 0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.4)} 50%{box-shadow:0 0 0 7px rgba(59,130,246,0)} }
+        .send-btn { width: 48px; height: 48px; border-radius: 10px; border: none; background: linear-gradient(135deg, var(--gold), var(--gold-dim)); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #0d1117; transition: all .2s; flex-shrink: 0; }
+        .send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(212,168,83,.4); }
+        .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @media (max-width: 700px) { .sidebar { display: none; } }
+    </style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="logo-text">PrepMate AI</div>
+    <div class="logo-sub">IELTS &amp; GRE Coaching</div>
+
+    <div class="setup-section">
+      <div class="setup-label">Groq API Key</div>
+      <div class="api-wrap">
+        <input type="password" id="api-key-input" class="api-input" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx">
+        <button class="eye-btn" onclick="toggleKey()">👁</button>
+      </div>
+      <div class="hint">Free key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> · No credit card needed · Stays in your browser only</div>
+    </div>
+
+    <div class="setup-section">
+      <div class="setup-label">Choose Your Exam</div>
+      <div class="exam-grid">
+        <button class="exam-btn" id="btn-ielts" onclick="selectExam('IELTS')">
+          <div class="exam-icon">🎓</div>
+          <div class="exam-name">IELTS</div>
+          <div class="exam-desc">Academic &amp; General</div>
+          <div class="exam-secs">Listening · Reading<br>Writing · Speaking</div>
+        </button>
+        <button class="exam-btn" id="btn-gre" onclick="selectExam('GRE')">
+          <div class="exam-icon">📐</div>
+          <div class="exam-name">GRE</div>
+          <div class="exam-desc">Graduate Record Exam</div>
+          <div class="exam-secs">Verbal · Quantitative<br>Analytical Writing</div>
+        </button>
+      </div>
+    </div>
+
+    <div id="section-picker">
+      <div class="setup-label" id="section-label">Select a Section</div>
+      <div class="section-grid" id="section-grid"></div>
+    </div>
+
+    <button class="start-btn" id="start-btn" onclick="startApp()" disabled>Start Practice Session →</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">PrepMate</div>
+      <span class="mode-badge" id="exam-badge">IELTS</span>
+      <span class="section-badge" id="section-badge">· Speaking</span>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" onclick="clearChat()" title="Clear chat">🗑</button>
+      <button class="icon-btn" onclick="goBack()" title="Settings">⚙️</button>
+    </div>
+  </div>
+  <div class="subtab-bar" id="subtab-bar"></div>
+  <div class="main-layout">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="chat-area">
+      <div id="messages"></div>
+      <div class="input-area">
+        <div class="status-bar"><div class="sdot" id="sdot"></div><span id="stext">Ready — type or press the mic to speak</span></div>
+        <div class="input-row">
+          <textarea id="text-input" placeholder="Type here or use the mic…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let apiKey = '', selectedExam = '', selectedSection = '', selectedSubtab = '';
+let conversationHistory = [], isProcessing = false, isMicActive = false;
+
+// ═══════════════════════════════════════════════════
+// EXAM DATA — properly structured per real exam format
+// ═══════════════════════════════════════════════════
+const EXAMS = {
+
+  IELTS: {
+    badgeClass: 'badge-ielts',
+    sections: [
+      // ── LISTENING ──
+      {
+        id: 'Listening', icon: '🎧', name: 'Listening',
+        detail: 'Sections 1–4 · Form fill · MCQ · Matching · Map',
+        subtabs: ['Section 1 & 2', 'Section 3 & 4', 'Form Completion', 'Multiple Choice', 'Matching & Maps'],
+        sidebar: {
+          'By Question Type': [
+            { icon: '📝', label: 'Form / Note Completion' },
+            { icon: '🔲', label: 'Multiple Choice (A/B/C)' },
+            { icon: '🔗', label: 'Matching Information' },
+            { icon: '🗺', label: 'Plan / Map / Diagram Labels' },
+            { icon: '📋', label: 'Summary Completion' },
+          ],
+          'By Section Level': [
+            { icon: '1️⃣', label: 'Section 1 — Everyday Conversation' },
+            { icon: '2️⃣', label: 'Section 2 — Public Monologue' },
+            { icon: '3️⃣', label: 'Section 3 — Academic Discussion' },
+            { icon: '4️⃣', label: 'Section 4 — Academic Lecture' },
+          ],
+        },
+        systemRole: `You are an expert IELTS Listening coach. Since audio is unavailable, simulate IELTS Listening through realistic text-based transcripts.
+
+IELTS Listening has 4 sections:
+- Section 1: Two people in everyday social context (e.g., booking a hotel, registering for a class). Easiest.
+- Section 2: One person speaking about an everyday topic (e.g., tour guide, local radio). Still accessible.
+- Section 3: 2–4 people in academic/educational context (e.g., students discussing an assignment). Harder vocabulary.
+- Section 4: One person giving an academic lecture. Most difficult vocabulary and density.
+
+QUESTION TYPES you must be able to simulate:
+1. Form/Note/Summary/Table/Flowchart Completion: Fill gaps using exact words from the transcript (max 3 words and/or a number).
+2. Multiple Choice: 3 options (A/B/C) or 5 options matching features.
+3. Matching: Match items from a list to options (common trap: distractors mentioned but not chosen).
+4. Map/Plan/Diagram Labelling: Describe a layout in words, student labels it.
+
+TEACHING FOCUS:
+- Warn about DISTRACTORS — answers that are mentioned but then corrected or contradicted
+- Teach "signpost language": "Actually...", "I mean...", "What I'm trying to say is..." = answer is about to change
+- Emphasise following instructions: "Write NO MORE THAN TWO WORDS" — never exceed this
+- Spelling counts! Numbers can be written as digits or words.
+
+When simulating: write the transcript first, then present questions. After student answers: show correct answers with explanation of where in the transcript each answer appears.`,
+        welcome: {
+          emoji: '🎧', title: 'IELTS Listening Coach',
+          subtitle: 'Sections 1–4 · All question types simulated',
+          desc: 'Practice all 4 IELTS Listening sections through realistic text-based transcripts. Learn to catch distractors, follow signpost language, and handle every question format.',
+          prompts: [
+            { icon: '📝', text: 'Give me a Section 1 form-completion exercise' },
+            { icon: '🎓', text: 'Simulate a Section 4 academic lecture with questions' },
+            { icon: '⚠️', text: 'Teach me how to spot and avoid distractors' },
+            { icon: '🗺', text: 'Practice a map labelling question with a description' },
+          ],
+        },
+      },
+
+      // ── READING ──
+      {
+        id: 'Reading', icon: '📖', name: 'Reading',
+        detail: 'Academic & General · T/F/NG · Headings · MCQ · Summary',
+        subtabs: ['True / False / NG', 'Matching Headings', 'Multiple Choice', 'Summary Completion', 'Skimming & Scanning'],
+        sidebar: {
+          'Question Types': [
+            { icon: '✅', label: 'True / False / Not Given' },
+            { icon: '🏷', label: 'Matching Headings to Paragraphs' },
+            { icon: '🔲', label: 'Multiple Choice' },
+            { icon: '📄', label: 'Summary / Note Completion' },
+            { icon: '👤', label: 'Matching Features (people/places)' },
+            { icon: '🔗', label: 'Matching Sentence Endings' },
+          ],
+          'Reading Skills': [
+            { icon: '⏩', label: 'Skimming — Get the Gist Fast' },
+            { icon: '🎯', label: 'Scanning — Find Specific Info' },
+            { icon: '🔍', label: 'Close Reading — Inference' },
+            { icon: '⏱', label: '60-Minute Time Strategy' },
+          ],
+        },
+        systemRole: `You are an expert IELTS Reading coach.
+
+PASSAGE TYPES:
+- Academic: 3 long texts (~700–900 words each) on science, environment, history, technology, sociology
+- General Training: Section 1 (short notices/ads), Section 2 (workplace texts), Section 3 (longer discursive text)
+
+CRITICAL QUESTION TYPES:
+
+1. TRUE / FALSE / NOT GIVEN (for facts) and YES / NO / NOT GIVEN (for opinions):
+   - TRUE/YES: The passage explicitly CONFIRMS the statement
+   - FALSE/NO: The passage explicitly CONTRADICTS the statement
+   - NOT GIVEN: The passage NEITHER confirms NOR contradicts — the topic may be absent OR present but with no clear agreement/disagreement
+   ⚠️ Most common mistake: marking NOT GIVEN as FALSE when the text simply doesn't mention it.
+
+2. MATCHING HEADINGS: Match paragraph headings from a list (more headings than paragraphs). Skim each paragraph for the main idea, not just keywords. Watch for headings that mention the same keyword as the paragraph but describe a different aspect.
+
+3. MULTIPLE CHOICE: Often requires inference, not just keyword spotting.
+
+4. SUMMARY / SENTENCE COMPLETION: Use words FROM THE PASSAGE. Paraphrasing is common — the question uses different words than the passage.
+
+STRATEGY GUIDANCE:
+- Never leave blank answers (no penalty for wrong answers)
+- In T/F/NG: if you're unsure whether info is absent or contradicted, it's usually NOT GIVEN
+- Matching headings: do the easiest paragraphs first, eliminate options
+- Transfer answers carefully if using answer sheet`,
+        welcome: {
+          emoji: '📖', title: 'IELTS Reading Practice',
+          subtitle: 'Academic & General Training · All question types',
+          desc: 'Work through all IELTS Reading formats including the famously tricky True/False/Not Given. Get full passages, question sets, and detailed answer explanations.',
+          prompts: [
+            { icon: '📜', text: 'Give me an academic passage with T/F/NG questions' },
+            { icon: '🏷', text: 'Practice matching headings on a science passage' },
+            { icon: '❓', text: 'Explain the exact difference between False and Not Given' },
+            { icon: '⏱', text: 'How should I manage 60 minutes across 3 passages?' },
+          ],
+        },
+      },
+
+      // ── WRITING ──
+      {
+        id: 'Writing', icon: '✍️', name: 'Writing',
+        detail: 'Task 1: Graph/Letter · Task 2: Essay · Bands 0–9',
+        subtabs: ['Task 1 — Academic', 'Task 1 — General (Letter)', 'Task 2 — Essay', 'Band Descriptors', 'Model Answers'],
+        sidebar: {
+          'Task 1 Academic': [
+            { icon: '📊', label: 'Bar Chart / Line Graph' },
+            { icon: '🥧', label: 'Pie Chart' },
+            { icon: '🗺', label: 'Map Comparison (Before/After)' },
+            { icon: '🔄', label: 'Process / Flow Diagram' },
+            { icon: '📋', label: 'Table' },
+          ],
+          'Task 1 General': [
+            { icon: '📩', label: 'Formal Letter (complaint, request)' },
+            { icon: '💬', label: 'Semi-formal Letter (work colleague)' },
+            { icon: '👋', label: 'Informal Letter (friend/family)' },
+          ],
+          'Task 2 Essay Types': [
+            { icon: '⚖️', label: 'Discuss Both Views & Give Opinion' },
+            { icon: '💡', label: 'Opinion (Agree/Disagree)' },
+            { icon: '🔍', label: 'Problem & Solution' },
+            { icon: '➕', label: 'Advantages & Disadvantages' },
+            { icon: '❓', label: 'Two-Part Question' },
+          ],
+        },
+        systemRole: `You are an expert IELTS Writing examiner. You assess using the 4 official IELTS band descriptors:
+
+TASK 1 (Academic) — 150+ words, 20 min:
+- Criteria: Task Achievement (describe ALL key features, give an overview, no personal opinion), Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy
+- Must include: brief intro (paraphrase the prompt) + clear OVERVIEW (the main trend/pattern — this is what separates Band 5 from Band 7) + detail paragraphs with data
+- Common errors: copying the question word-for-word, no overview, describing every single data point without grouping trends
+
+TASK 1 (General Training) — 150+ words, 20 min:
+- Write a letter. Must match register: formal (Dear Sir/Madam ... Yours faithfully), semi-formal (Dear Mr Smith ... Yours sincerely), informal (Dear John ... Best wishes)
+- Must address ALL bullet points given
+- Criteria same as Academic Task 1 except Task Achievement
+
+TASK 2 — 250+ words, 40 min:
+- Worth TWICE the marks of Task 1
+- Criteria: Task Response (fully address ALL parts of the question, clear position), Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy
+- Essay types require different structures:
+  * Opinion/Agree-Disagree: state and maintain ONE clear position
+  * Discuss Both Views + Opinion: discuss BOTH sides, then give YOUR view
+  * Problem/Solution: identify problems, propose realistic solutions
+  * Advantages/Disadvantages: balanced exploration
+  * Two-Part Question: answer BOTH questions explicitly
+
+BAND SCORING (apply to each of 4 criteria separately, then average):
+9: Expert user, 8: Very good, 7: Good (target for most), 6: Competent, 5: Modest, 4: Limited, below 4: low
+
+When evaluating: quote specific sentences, give criterion-by-criterion bands, highlight good language, correct errors and explain why, suggest improved phrasing.`,
+        welcome: {
+          emoji: '✍️', title: 'IELTS Writing Coach',
+          subtitle: 'Task 1 & Task 2 · Full Band Scoring',
+          desc: 'Submit your writing for expert evaluation against all 4 IELTS band descriptors. Get criterion-by-criterion scores, line-by-line feedback, and model answer guidance for both academic and general training.',
+          prompts: [
+            { icon: '📊', text: 'Give me a Task 1 bar chart to describe' },
+            { icon: '💬', text: 'Give me a Task 2 Discuss Both Views essay question' },
+            { icon: '📝', text: 'Evaluate my Task 2 essay: [paste your writing]' },
+            { icon: '📩', text: 'Give me a General Training formal letter task' },
+          ],
+        },
+      },
+
+      // ── SPEAKING ──
+      {
+        id: 'Speaking', icon: '🗣️', name: 'Speaking',
+        detail: 'Part 1 · Part 2 Cue Card · Part 3 Discussion · Bands 0–9',
+        subtabs: ['Part 1 — Introduction', 'Part 2 — Cue Card', 'Part 3 — Discussion', 'Fluency & Vocabulary', 'Band Criteria'],
+        sidebar: {
+          'Part 1 Topics (4–5 min)': [
+            { icon: '🏡', label: 'Home & Hometown' },
+            { icon: '📚', label: 'Studies / Work' },
+            { icon: '🎯', label: 'Hobbies & Interests' },
+            { icon: '🍜', label: 'Food & Daily Routine' },
+            { icon: '🌤', label: 'Weather & Travel' },
+          ],
+          'Part 2 Cue Cards (3–4 min)': [
+            { icon: '🌍', label: 'A place you have visited' },
+            { icon: '👤', label: 'An important person in your life' },
+            { icon: '📅', label: 'A memorable event' },
+            { icon: '🎁', label: 'An object or gift' },
+            { icon: '📖', label: 'A book, film, or TV show' },
+          ],
+          'Part 3 Themes (4–5 min)': [
+            { icon: '🌐', label: 'Technology & Society' },
+            { icon: '🌱', label: 'Environment & Climate' },
+            { icon: '🏛', label: 'Education Systems' },
+            { icon: '💰', label: 'Economy & Work Life' },
+          ],
+        },
+        systemRole: `You are an expert IELTS Speaking examiner and coach.
+
+THE 3 PARTS:
+- Part 1 (4–5 min): Personal and familiar topics. Answers should be 2–4 sentences — not too short (don't just say "Yes"), not an essay. Use natural conversation.
+- Part 2 (3–4 min): Cue card with 3–4 bullet points. Student must speak for ~2 minutes. Prep time: 1 minute. Teach structure: briefly address EACH bullet point, expand on most interesting, conclude.
+- Part 3 (4–5 min): Abstract discussion linked to Part 2 topic. Longer, more complex answers expected. Discuss causes, effects, comparisons, predictions.
+
+4 SCORING CRITERIA (each 0–9):
+1. Fluency & Coherence: Smooth delivery, logical sequencing, minimal self-correction, good use of discourse markers (However, On the other hand, That being said...)
+2. Lexical Resource: Range and accuracy of vocabulary, collocations, idiomatic expressions (avoid overusing "good", "bad", "nice")
+3. Grammatical Range & Accuracy: Mix of simple and complex structures (relative clauses, conditionals, passives, perfect tenses)
+4. Pronunciation: Clear articulation, word stress, sentence stress, intonation — you can infer this from written text by checking spelling patterns
+
+WHEN STUDENT RESPONDS:
+- Give a band score for each criterion + overall band
+- Highlight good language use with examples
+- Quote and correct errors with explanations
+- Suggest better vocabulary (e.g., instead of "very big" → "enormous", "vast", "sprawling")
+- Teach PEEL structure for Part 3: Point → Explain → Example → Link back
+- Use mic feature to practise real spoken fluency`,
+        welcome: {
+          emoji: '🗣️', title: 'IELTS Speaking Coach',
+          subtitle: 'Parts 1, 2 & 3 · Band Scoring',
+          desc: 'Practice all three parts of the IELTS Speaking test with a realistic examiner. Get scored on all 4 criteria, vocabulary upgrades, grammar corrections, and strategic tips for extending your answers.',
+          prompts: [
+            { icon: '👋', text: 'Start a Part 1 conversation about my daily routine' },
+            { icon: '📸', text: 'Give me a Part 2 cue card on a memorable trip' },
+            { icon: '🌍', text: 'Ask me a Part 3 question about technology and society' },
+            { icon: '📊', text: 'Evaluate this answer and give me band scores' },
+          ],
+        },
+      },
+    ],
+  },
+
+  GRE: {
+    badgeClass: 'badge-gre',
+    sections: [
+      // ── VERBAL ──
+      {
+        id: 'Verbal', icon: '🔤', name: 'Verbal Reasoning',
+        detail: 'Text Completion · Sentence Equivalence · Reading Comprehension',
+        subtabs: ['Text Completion', 'Sentence Equivalence', 'Reading Comprehension', 'Vocabulary Drill', 'Strategy Guide'],
+        sidebar: {
+          'Text Completion': [
+            { icon: '1️⃣', label: 'Single Blank (1 of 5 options)' },
+            { icon: '2️⃣', label: 'Two Blanks (3 options each)' },
+            { icon: '3️⃣', label: 'Three Blanks (3 options each)' },
+          ],
+          'Sentence Equivalence': [
+            { icon: '🔗', label: 'Choose 2 synonymous completions' },
+            { icon: '⚠️', label: 'Common traps & near-synonyms' },
+          ],
+          'Reading Comprehension': [
+            { icon: '🎯', label: 'Main Idea / Primary Purpose' },
+            { icon: '🔍', label: 'Inference Questions' },
+            { icon: '⚖️', label: 'Strengthen / Weaken' },
+            { icon: '👤', label: "Author's Tone & Attitude" },
+            { icon: '📖', label: 'Long Passage (3–5 paragraphs)' },
+          ],
+          'Vocabulary': [
+            { icon: '⭐', label: 'High-Frequency GRE Words' },
+            { icon: '🌿', label: 'Latin & Greek Word Roots' },
+            { icon: '🔁', label: 'Vocab Quiz Mode' },
+          ],
+        },
+        systemRole: `You are an expert GRE Verbal Reasoning coach. GRE Verbal is heavily vocabulary-dependent — harder questions often test rare, precise words.
+
+THREE QUESTION TYPES:
+
+1. TEXT COMPLETION (TC):
+- Fill 1, 2, or 3 blanks. For multi-blank: each blank has 3 options and must be filled INDEPENDENTLY.
+- Strategy: Find the "key sentence" — the pivot of the passage's logic. Look for signal words: contrast (however, despite, although, yet, but, rather than, ironically), continuation (moreover, in addition, similarly), cause-effect (therefore, thus, consequently).
+- For multi-blank: fill the easier blank first, then use that to constrain the other blanks.
+- Common trap: choosing a word that sounds right in isolation but doesn't fit the passage's logic.
+
+2. SENTENCE EQUIVALENCE (SE):
+- Choose 2 of 6 words to complete a sentence. BOTH must produce sentences that are similar in meaning (near-synonymous in context — not just dictionary synonyms).
+- Common trap: two words that are synonyms out of context but create different sentence meanings. Both must pass the "similar meaning" test.
+
+3. READING COMPREHENSION (RC):
+- Short passages (1–2 paragraphs, 1–3 questions) and long passages (3–5 paragraphs, 3–4 questions).
+- Question types: Main Idea/Primary Purpose, Inference, Author's Tone/Attitude, Specific Detail, Strengthen/Weaken, Logical Structure.
+- For "Primary Purpose" — the author's OVERALL goal, not a specific detail.
+- For "Attitude/Tone" — look for evaluative adjectives and charged language.
+
+VOCABULARY TEACHING: GRE rewards precision. Teach words with:
+- Definition + register/connotation (not just meaning)
+- Etymology (e.g., "loquacious" from Latin loqui = to speak)
+- Example in a GRE-style TC/SE context
+- 2–3 synonyms that could appear as wrong/right SE options
+- Antonym for contrast
+
+When giving questions: label the type, difficulty (Easy/Medium/Hard/Very Hard), explain why each wrong answer is wrong.`,
+        welcome: {
+          emoji: '🔤', title: 'GRE Verbal Reasoning',
+          subtitle: 'TC · SE · Reading Comprehension · Vocabulary',
+          desc: 'The GRE Verbal section punishes guessing on rare vocabulary. Text Completion and Sentence Equivalence reward knowing precise word meanings — not just approximate synonyms.',
+          prompts: [
+            { icon: '3️⃣', text: 'Give me a hard 3-blank Text Completion question' },
+            { icon: '🔗', text: 'Give me a Sentence Equivalence question with traps' },
+            { icon: '📖', text: 'Give me a short RC passage with inference questions' },
+            { icon: '⭐', text: 'Teach me 5 high-frequency GRE words with etymology' },
+          ],
+        },
+      },
+
+      // ── QUANTITATIVE ──
+      {
+        id: 'Quant', icon: '📐', name: 'Quantitative Reasoning',
+        detail: 'Arithmetic · Algebra · Geometry · Data Analysis · QC',
+        subtabs: ['Quantitative Comparison', 'Problem Solving', 'Arithmetic & Number Theory', 'Algebra & Functions', 'Geometry', 'Data Analysis & Stats'],
+        sidebar: {
+          'Question Types': [
+            { icon: '⚖️', label: 'Quantitative Comparison (QC)' },
+            { icon: '🔲', label: 'Multiple Choice — Single Answer' },
+            { icon: '☑️', label: 'Multiple Choice — All That Apply' },
+            { icon: '🔢', label: 'Numeric Entry (type the answer)' },
+            { icon: '📊', label: 'Data Interpretation Sets' },
+          ],
+          'Arithmetic': [
+            { icon: '🔢', label: 'Integers, Factors, Multiples, Primes' },
+            { icon: '%', label: 'Percentages, Ratios, Proportions' },
+            { icon: '⚡', label: 'Exponents & Roots' },
+          ],
+          'Algebra & Geometry': [
+            { icon: '📈', label: 'Equations, Inequalities, Word Problems' },
+            { icon: '📉', label: 'Quadratics, Functions, Sequences' },
+            { icon: '📐', label: 'Triangles, Angles, Coordinate Geometry' },
+            { icon: '⭕', label: 'Circles, 3D Solids' },
+          ],
+          'Data & Probability': [
+            { icon: '🎲', label: 'Probability & Combinations' },
+            { icon: '📊', label: 'Mean, Median, SD, Percentiles' },
+          ],
+        },
+        systemRole: `You are an expert GRE Quantitative Reasoning coach. GRE Quant tests mathematical reasoning at roughly a high school level, but with carefully constructed traps.
+
+QUESTION FORMAT:
+1. Quantitative Comparison (QC): Given Quantity A and Quantity B — choose:
+   (A) Quantity A is greater
+   (B) Quantity B is greater  
+   (C) Both are equal
+   (D) The relationship cannot be determined
+   Strategy: try specific numbers first (positive, negative, zero, fractions). If you get different answers, the answer is (D). Algebraic simplification often works. Never assume variables are positive integers unless stated.
+   ⚠️ Most common trap: forgetting that x could be 0, negative, or a fraction.
+
+2. Multiple Choice — Single Answer: Standard problem solving.
+
+3. Multiple Choice — All That Apply (AATA): Select ALL correct choices. Can be 1 to all. No partial credit. Most common trap: stopping after finding one right answer.
+
+4. Numeric Entry: Calculate exact answer. Watch units. Can be a fraction or decimal.
+
+5. Data Interpretation: Usually 2–3 questions about a graph/table. Read axes carefully. Common trap: misreading % change vs absolute change.
+
+CONTENT:
+- Arithmetic: divisibility, LCM/GCF, prime factorization, fractions, decimals, %, ratios, proportions, exponents (including negative/fractional), roots, absolute value
+- Algebra: linear equations/inequalities, systems, polynomials, factoring, quadratics, inequalities, functions (f(g(x))), sequences (arithmetic/geometric)
+- Geometry: parallel lines, triangles (Pythagorean theorem, 30-60-90, 45-45-90, similar triangles), quadrilaterals, circles (arc, sector, chord), coordinate geometry (slope, distance, midpoint), 3D (volume, surface area)
+- Data Analysis: descriptive stats (mean/median/mode/range/IQR/SD), normal distribution, percentile, probability (independent/dependent events, P(A or B), P(A and B)), combinations/permutations
+
+When giving practice problems:
+- State the type (QC / MC / AATA / NE / DI)
+- After student answers: full step-by-step solution
+- Highlight the KEY INSIGHT or trap
+- Note difficulty level
+- Offer a follow-up variation`,
+        welcome: {
+          emoji: '📐', title: 'GRE Quantitative Reasoning',
+          subtitle: 'QC · Problem Solving · Data Interpretation',
+          desc: 'GRE Quant is not about complex math — it\'s about reasoning under pressure and avoiding traps. Quantitative Comparison questions in particular reward strategic thinking over calculation.',
+          prompts: [
+            { icon: '⚖️', text: 'Give me 3 Quantitative Comparison questions' },
+            { icon: '🔢', text: 'Quiz me on number properties and prime factorization' },
+            { icon: '📊', text: 'Give me a Data Interpretation set with a chart' },
+            { icon: '📐', text: 'Practice geometry — triangles and circles' },
+          ],
+        },
+      },
+
+      // ── ANALYTICAL WRITING ──
+      {
+        id: 'AWA', icon: '⚖️', name: 'Analytical Writing',
+        detail: 'Issue Essay · Argument Essay · Scored 0–6',
+        subtabs: ['Issue Essay (Task 1)', 'Argument Essay (Task 2)', 'Scoring Rubric 0–6', 'Planning & Structure', 'Common Mistakes'],
+        sidebar: {
+          'Issue Essay': [
+            { icon: '🎯', label: 'Understand the task directions' },
+            { icon: '🗂', label: 'Brainstorm position + examples (5 min)' },
+            { icon: '🖊', label: 'Intro → 2-3 Body → Conclusion (25 min)' },
+            { icon: '✅', label: 'Nuance: address counterargument' },
+          ],
+          'Argument Essay': [
+            { icon: '🔬', label: 'Identify unstated assumptions' },
+            { icon: '⚠️', label: 'Spot logical flaws (list below)' },
+            { icon: '❓', label: 'Raise "what if" questions to author' },
+            { icon: '🚫', label: 'DO NOT give your own opinion' },
+          ],
+          'Logical Flaws to Find': [
+            { icon: '📉', label: 'Hasty Generalization' },
+            { icon: '🔗', label: 'Correlation ≠ Causation' },
+            { icon: '⚗️', label: 'Unrepresentative Sample / Survey' },
+            { icon: '🎭', label: 'False Analogy' },
+            { icon: '🌓', label: 'False Dichotomy' },
+            { icon: '📆', label: 'Outdated / Inapplicable Data' },
+          ],
+        },
+        systemRole: `You are an expert GRE Analytical Writing (AWA) evaluator and coach.
+
+GRE AWA has TWO DISTINCT tasks — students commonly confuse them:
+
+TASK 1 — ANALYZE AN ISSUE (30 min, 0–6):
+- A claim or recommendation is given with specific instructions (e.g., "Write a response in which you discuss the extent to which you agree or disagree...")
+- READ THE INSTRUCTIONS carefully — they specify HOW to respond (agree/disagree, discuss complexity, consider exceptions, etc.)
+- You MUST take and defend a clear position. Hedging = lower score.
+- Support with specific, concrete examples (historical, scientific, personal, hypothetical — all valid)
+- Structure: Strong intro with clear thesis → 2-3 body paragraphs, each with a specific example + analysis → nuanced conclusion (acknowledge complexity or limits)
+- High scores require INSIGHT, not just examples — analyze WHY your example proves your point.
+
+TASK 2 — ANALYZE AN ARGUMENT (30 min, 0–6):
+- A short argument (like a memo or editorial) is presented with logical flaws.
+- Your job: CRITIQUE the argument's reasoning — DO NOT express your own view on the topic.
+- NEVER write "I agree/disagree with the author's conclusion." That's the most common fatal mistake.
+- Identify: unstated assumptions, logical leaps, weak evidence, alternative explanations
+- Common flaws: hasty generalization, correlation ≠ causation, unrepresentative sample, false analogy, outdated data, either/or fallacy, ambiguous terms
+- Structure: Intro (briefly summarize argument, state it has reasoning flaws) → 2-3 body paragraphs each attacking ONE specific assumption/flaw with explanation of how it undermines the argument → conclusion (what evidence or conditions would strengthen/weaken the argument)
+
+SCORING RUBRIC:
+6: Outstanding — compelling, insightful analysis; well-organized; vivid, precise language; virtually no errors
+5: Strong — generally thoughtful; well-organized; good support; minor flaws in depth or precision
+4: Adequate — competent analysis; relevant support; clear organization; some lapses in depth or errors
+3: Limited — some analysis but superficial, incomplete, or unfocused; frequent errors
+2: Seriously Flawed — little relevant analysis; disorganized; many errors
+1: Fundamentally Deficient — almost no skill demonstrated
+0: Off-topic, not in English, or blank
+
+When evaluating essays: give a numerical score (can use 0.5 increments), cite specific sentences, explain what raises or lowers the score, suggest concrete rewrites.`,
+        welcome: {
+          emoji: '⚖️', title: 'GRE Analytical Writing',
+          subtitle: 'Issue Essay & Argument Essay · Scored 0–6',
+          desc: 'The #1 mistake in the AWA: treating both essays the same. The Issue Essay asks for YOUR reasoned opinion. The Argument Essay asks you to critique SOMEONE ELSE\'S reasoning — never state your own view on the topic.',
+          prompts: [
+            { icon: '💡', text: 'Give me an Issue Essay prompt to write' },
+            { icon: '🔬', text: 'Give me an Argument Essay prompt to critique' },
+            { icon: '📝', text: 'Score my essay: [paste your essay here]' },
+            { icon: '⚠️', text: 'List the most common logical flaws in Argument essays' },
+          ],
+        },
+      },
+    ],
+  },
+};
+
+// ═══════════════════════════════════
+// SETUP LOGIC
+// ═══════════════════════════════════
+document.getElementById('api-key-input').addEventListener('input', function() {
+  apiKey = this.value.trim(); checkStart();
+});
+function toggleKey() {
+  const i = document.getElementById('api-key-input');
+  i.type = i.type === 'password' ? 'text' : 'password';
+}
+function selectExam(exam) {
+  selectedExam = exam; selectedSection = '';
+  document.getElementById('btn-ielts').className = 'exam-btn' + (exam==='IELTS'?' sel-ielts':'');
+  document.getElementById('btn-gre').className = 'exam-btn' + (exam==='GRE'?' sel-gre':'');
+  const config = EXAMS[exam];
+  document.getElementById('section-label').textContent =
+    exam === 'IELTS' ? '4 Sections — Pick one to focus on' : '3 Sections — Pick one to focus on';
+  const grid = document.getElementById('section-grid');
+  grid.innerHTML = '';
+  config.sections.forEach(sec => {
+    const btn = document.createElement('button');
+    btn.className = 'section-btn'; btn.id = 'sec-'+sec.id;
+    btn.innerHTML = `<span class="sec-icon">${sec.icon}</span><div><div class="sec-name">${sec.name}</div><div class="sec-detail">${sec.detail}</div></div>`;
+    btn.onclick = () => selectSection(sec.id);
+    grid.appendChild(btn);
+  });
+  document.getElementById('section-picker').style.display = 'block';
+  checkStart();
+}
+function selectSection(id) {
+  selectedSection = id;
+  document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  checkStart();
+}
+function checkStart() {
+  document.getElementById('start-btn').disabled = !(apiKey && selectedExam && selectedSection);
+}
+function startApp() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'flex';
+  initSection(selectedSection);
+}
+function goBack() {
+  document.getElementById('setup-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
+
+// ═══════════════════════════════════
+// APP
+// ═══════════════════════════════════
+function getSection(id) { return EXAMS[selectedExam].sections.find(s => s.id === id); }
+
+function initSection(sectionId) {
+  selectedSection = sectionId;
+  conversationHistory = [];
+  const sec = getSection(sectionId);
+  const cfg = EXAMS[selectedExam];
+
+  document.getElementById('exam-badge').textContent = selectedExam;
+  document.getElementById('exam-badge').className = 'mode-badge ' + cfg.badgeClass;
+  document.getElementById('section-badge').textContent = '· ' + sec.name;
+
+  // Subtabs
+  const bar = document.getElementById('subtab-bar');
+  bar.innerHTML = '';
+  selectedSubtab = sec.subtabs[0];
+  sec.subtabs.forEach(tab => {
+    const b = document.createElement('button');
+    b.className = 'subtab' + (tab === selectedSubtab ? ' active' : '');
+    b.textContent = tab;
+    b.onclick = () => {
+      document.querySelectorAll('.subtab').forEach(t => t.classList.remove('active'));
+      b.classList.add('active');
+      selectedSubtab = tab;
+    };
+    bar.appendChild(b);
+  });
+
+  // Sidebar
+  const sb = document.getElementById('sidebar');
+  sb.innerHTML = '';
+  Object.entries(sec.sidebar).forEach(([grp, items]) => {
+    const t = document.createElement('div'); t.className = 'sb-title'; t.textContent = grp; sb.appendChild(t);
+    items.forEach((item, i) => {
+      const el = document.createElement('div');
+      el.className = 'sb-item' + (i===0 && grp===Object.keys(sec.sidebar)[0] ? ' active' : '');
+      el.innerHTML = `<span class="sb-icon">${item.icon}</span>${item.label}`;
+      el.onclick = () => {
+        document.querySelectorAll('.sb-item').forEach(x => x.classList.remove('active'));
+        el.classList.add('active');
+        sendQuickPrompt('Practice: ' + item.label);
+      };
+      sb.appendChild(el);
+    });
+  });
+
+  // Voice
+  if (recognition) {
+    recognition.continuous = false; recognition.interimResults = false; recognition.lang = 'en-US';
+    recognition.onresult = e => { document.getElementById('text-input').value = e.results[0][0].transcript; stopMic(); sendMessage(); };
+    recognition.onend = () => stopMic();
+    recognition.onerror = () => stopMic();
+  } else {
+    document.getElementById('mic-btn').style.opacity = '.4';
+  }
+
+  showWelcome(sec);
+}
+
+function showWelcome(sec) {
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '';
+  const w = sec.welcome;
+  const c = document.createElement('div'); c.className = 'welcome-card';
+  c.innerHTML = `
+    <div class="wc-header"><div class="wc-emoji">${w.emoji}</div><div><div class="wc-title">${w.title}</div><div class="wc-sub">${w.subtitle}</div></div></div>
+    <div class="wc-desc">${w.desc}</div>
+    <div class="qp-label">Try a starter</div>
+    <div class="qp-list">${w.prompts.map(p=>`<button class="qp-btn" onclick="sendQuickPrompt('${p.text.replace(/'/g,"\\'")}')"><span>${p.icon}</span>${p.text}</button>`).join('')}</div>`;
+  msgs.appendChild(c);
+}
+
+function clearChat() { conversationHistory = []; showWelcome(getSection(selectedSection)); }
+
+function buildSystemPrompt() {
+  const sec = getSection(selectedSection);
+  return sec.systemRole + `\n\nCurrent focus subtab: "${selectedSubtab}". Align practice and explanations to this subtopic when relevant.`;
+}
+
+async function sendMessage() {
+  const inp = document.getElementById('text-input');
+  const text = inp.value.trim();
+  if (!text || isProcessing) return;
+  inp.value = ''; autoResize(inp);
+  const wc = document.querySelector('.welcome-card');
+  if (wc) wc.remove();
+  addMsg('user', text);
+  conversationHistory.push({ role: 'user', content: text });
+  isProcessing = true; setStatus('thinking', 'Thinking…');
+  document.getElementById('send-btn').disabled = true;
+  const typing = addTyping();
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'system', content: buildSystemPrompt() }, ...conversationHistory],
+        max_tokens: 1200, temperature: 0.7,
+      }),
+    });
+    typing.remove();
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error?.message || `API error ${res.status}`); }
+    const data = await res.json();
+    const botText = data.choices[0].message.content;
+    conversationHistory.push({ role: 'assistant', content: botText });
+    addMsg('assistant', botText);
+    if (selectedSection === 'Speaking') speakText(botText);
+    else setStatus('ready', 'Ready — type or press the mic to speak');
+  } catch (err) {
+    typing.remove();
+    addMsg('assistant', `⚠️ **Error:** ${err.message}\n\nCheck your Groq API key and try again.`);
+    setStatus('ready', 'Error — please try again');
+  }
+  isProcessing = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+function sendQuickPrompt(text) { document.getElementById('text-input').value = text; sendMessage(); }
+
+function addMsg(role, text) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div'); div.className = 'message' + (role==='user'?' user':'');
+  const av = document.createElement('div'); av.className = 'avatar ' + (role==='user'?'avatar-user':'avatar-ai'); av.textContent = role==='user'?'👤':'🤖';
+  const bub = document.createElement('div'); bub.className = 'bubble'; bub.innerHTML = md(text);
+  div.appendChild(av); div.appendChild(bub); msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight; return div;
+}
+function addTyping() {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div'); div.className = 'message';
+  const av = document.createElement('div'); av.className = 'avatar avatar-ai'; av.textContent = '🤖';
+  const bub = document.createElement('div'); bub.className = 'bubble typing-bub';
+  bub.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  div.appendChild(av); div.appendChild(bub); msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight; return div;
+}
+function md(t) {
+  return t
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`(.+?)`/g,'<code>$1</code>')
+    .replace(/^### (.+)$/gm,'<h4>$1</h4>')
+    .replace(/^## (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^[-•] (.+)$/gm,'<li>$1</li>')
+    .replace(/^\d+\. (.+)$/gm,'<li>$1</li>')
+    .replace(/((?:<li>.+<\/li>\n?)+)/g,'<ul>$1</ul>')
+    .replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')
+    .replace(/^([^<p].+)$/,'<p>$1</p>')
+    .replace(/Band (\d+\.?\d*)/g,'<span class="chip chip-g">Band $1</span>')
+    .replace(/(\d+\.?\d*)\/6/g,'<span class="chip chip-a">$1/6</span>')
+    .replace(/Score[:\s]+(\d+\.?\d*)/g,'<span class="chip chip-a">Score: $1</span>');
+}
+
+function setStatus(type, text) {
+  document.getElementById('stext').textContent = text;
+  document.getElementById('sdot').className = 'sdot' + (type!=='ready'?' '+type:'');
+}
+
+// Voice
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+const synthesis = window.speechSynthesis;
+function toggleMic() { if (!recognition) { alert('Speech recognition requires Chrome or Edge.'); return; } isMicActive ? stopMic() : startMic(); }
+function startMic() { isMicActive=true; document.getElementById('mic-btn').classList.add('active'); setStatus('listening','Listening… speak now'); try{recognition.start();}catch(e){} }
+function stopMic() { isMicActive=false; document.getElementById('mic-btn').classList.remove('active'); setStatus('ready','Ready — type or press the mic to speak'); try{recognition.stop();}catch(e){} }
+function speakText(text) {
+  if (!synthesis) return; synthesis.cancel();
+  const clean = text.replace(/<[^>]*>/g,'').replace(/\*\*/g,'').replace(/\*/g,'').substring(0,900);
+  const u = new SpeechSynthesisUtterance(clean); u.rate=0.93;
+  u.onstart=()=>setStatus('speaking','Bot is speaking…');
+  u.onend=()=>setStatus('ready','Ready — type or press the mic to speak');
+  u.onerror=()=>setStatus('ready','Ready');
+  synthesis.speak(u);
+}
+
+function handleKey(e) { if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
+</script>
+</body>
+</html>
