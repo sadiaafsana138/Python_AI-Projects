@@ -1,7 +1,10 @@
 # PaperMind
+Ask anything about your PDFs — PaperMind finds the answer.
+Upload one or more documents, type your question, and get a precise,
+grounded response powered by Groq Llama 3.3 70B. No hallucinations,
+no guesswork — every answer comes directly from your files.
 
-Upload PDFs and ask questions. Answers come only from your documents.
-
+Live : https://paper-mind-ai.streamlit.app/
 ## How It Works
 
 1. Upload one or more PDF files
